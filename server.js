@@ -227,6 +227,19 @@ function initializeHtmlFile() {
 // Initialize the HTML file on startup
 initializeHtmlFile();
 
+// Path to store submissions in JSON format
+const dataJsonPath = path.join(publicDir, 'data.json');
+
+// Initialize the JSON file if it doesn't exist
+function initializeJsonFile() {
+  if (!fs.existsSync(dataJsonPath)) {
+    fs.writeFileSync(dataJsonPath, JSON.stringify([], null, 2));
+  }
+}
+
+// Initialize the JSON file on startup
+initializeJsonFile();
+
 // Function to validate submitted data
 function validateData(data) {
   const allowedPattern = /^[a-zA-Z0-9()\-.,\s]{1,15}$/;
@@ -289,6 +302,14 @@ app.get('/submit', (req, res) => {
     // Write the updated HTML back to the file
     fs.writeFileSync(dataHtmlPath, htmlContent);
 
+    // Also append to JSON file
+    const jsonData = JSON.parse(fs.readFileSync(dataJsonPath, 'utf8'));
+    jsonData.push({
+      timestamp: timestamp,
+      data: submittedData
+    });
+    fs.writeFileSync(dataJsonPath, JSON.stringify(jsonData, null, 2));
+
     console.log(`Data appended at ${timestamp}`);
 
     res.json({
@@ -315,6 +336,20 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, (m) => map[m]);
 }
 
+// Endpoint to get all data in JSON format
+app.get('/data', (req, res) => {
+  try {
+    const jsonData = JSON.parse(fs.readFileSync(dataJsonPath, 'utf8'));
+    res.json({
+      total: jsonData.length,
+      submissions: jsonData
+    });
+  } catch (error) {
+    console.error('Error reading JSON data:', error.message);
+    res.status(500).json({ error: 'An error occurred while reading data', details: error.message });
+  }
+});
+
 // Health check endpoint
 app.get('/', (req, res) => {
   res.json({
@@ -322,11 +357,13 @@ app.get('/', (req, res) => {
     endpoints: {
       poster: 'GET /poster?movie=MovieName',
       submit: 'GET /submit?key=value',
-      viewData: 'GET /public/data.html'
+      viewData: 'GET /public/data.html',
+      getData: 'GET /data (returns JSON)'
     },
     examples: {
       poster: 'GET /poster?movie=Inception',
-      submit: 'GET /submit?name=John&message=Hello'
+      submit: 'GET /submit?name=John&message=Hello',
+      data: 'GET /data'
     }
   });
 });
