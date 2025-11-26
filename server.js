@@ -9,6 +9,15 @@ const PORT = process.env.PORT || 2525;
 
 app.use(express.json());
 
+// Create public directory if it doesn't exist
+const publicDir = path.join(__dirname, 'public');
+if (!fs.existsSync(publicDir)) {
+  fs.mkdirSync(publicDir);
+}
+
+// Serve static files from public directory
+app.use('/public', express.static(publicDir));
+
 // Create downloads directory if it doesn't exist
 const downloadsDir = path.join(__dirname, 'downloads');
 if (!fs.existsSync(downloadsDir)) {
@@ -159,12 +168,166 @@ app.get('/poster', async (req, res) => {
   }
 });
 
+// Path to the public HTML file
+const dataHtmlPath = path.join(publicDir, 'data.html');
+
+// Initialize the HTML file if it doesn't exist
+function initializeHtmlFile() {
+  if (!fs.existsSync(dataHtmlPath)) {
+    const initialHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submitted Data</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    h1 {
+      color: #333;
+      border-bottom: 3px solid #4CAF50;
+      padding-bottom: 10px;
+    }
+    .entry {
+      background: white;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .timestamp {
+      color: #666;
+      font-size: 0.9em;
+      margin-bottom: 10px;
+    }
+    .data {
+      background: #f9f9f9;
+      padding: 10px;
+      border-left: 4px solid #4CAF50;
+      margin-top: 10px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+  </style>
+</head>
+<body>
+  <h1>Submitted Data</h1>
+  <p>All submissions appear below:</p>
+</body>
+</html>`;
+    fs.writeFileSync(dataHtmlPath, initialHtml);
+  }
+}
+
+// Initialize the HTML file on startup
+initializeHtmlFile();
+
+// Function to validate submitted data
+function validateData(data) {
+  const allowedPattern = /^[a-zA-Z0-9()\-.,\s]{1,15}$/;
+  const errors = [];
+
+  for (const [key, value] of Object.entries(data)) {
+    if (typeof value !== 'string' && typeof value !== 'number') {
+      errors.push(`Field "${key}" must be a string or number`);
+      continue;
+    }
+
+    const stringValue = String(value);
+
+    if (stringValue.length > 15) {
+      errors.push(`Field "${key}" exceeds 15 characters (has ${stringValue.length})`);
+    }
+
+    if (!allowedPattern.test(stringValue)) {
+      errors.push(`Field "${key}" contains invalid characters. Only letters, numbers, and ()-., are allowed`);
+    }
+  }
+
+  return errors;
+}
+
+// Endpoint to receive and append data
+app.get('/submit', (req, res) => {
+  try {
+    const submittedData = req.query;
+
+    if (!submittedData || Object.keys(submittedData).length === 0) {
+      return res.status(400).json({ error: 'No data provided. Use /submit?key=value' });
+    }
+
+    // Validate the submitted data
+    const validationErrors = validateData(submittedData);
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        error: 'Invalid data format',
+        details: validationErrors
+      });
+    }
+
+    // Read the current HTML file
+    let htmlContent = fs.readFileSync(dataHtmlPath, 'utf8');
+
+    // Create the new entry HTML
+    const timestamp = new Date().toLocaleString();
+    const dataString = JSON.stringify(submittedData, null, 2);
+
+    const newEntry = `
+  <div class="entry">
+    <div class="timestamp">Submitted on: ${timestamp}</div>
+    <div class="data">${escapeHtml(dataString)}</div>
+  </div>`;
+
+    // Insert the new entry before the closing </body> tag
+    htmlContent = htmlContent.replace('</body>', `${newEntry}\n</body>`);
+
+    // Write the updated HTML back to the file
+    fs.writeFileSync(dataHtmlPath, htmlContent);
+
+    console.log(`Data appended at ${timestamp}`);
+
+    res.json({
+      success: true,
+      message: 'Data successfully submitted',
+      viewAt: `/public/data.html`
+    });
+
+  } catch (error) {
+    console.error('Error submitting data:', error.message);
+    res.status(500).json({ error: 'An error occurred while submitting data', details: error.message });
+  }
+});
+
+// Helper function to escape HTML to prevent XSS
+function escapeHtml(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, (m) => map[m]);
+}
+
 // Health check endpoint
 app.get('/', (req, res) => {
   res.json({
     message: 'Movie Poster Scraper API',
-    usage: 'GET /poster?movie=MovieName',
-    example: 'GET /poster?movie=Inception'
+    endpoints: {
+      poster: 'GET /poster?movie=MovieName',
+      submit: 'GET /submit?key=value',
+      viewData: 'GET /public/data.html'
+    },
+    examples: {
+      poster: 'GET /poster?movie=Inception',
+      submit: 'GET /submit?name=John&message=Hello'
+    }
   });
 });
 
