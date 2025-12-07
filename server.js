@@ -242,7 +242,7 @@ initializeJsonFile();
 
 // Function to validate submitted data
 function validateData(data) {
-  const allowedPattern = /^[a-zA-Z0-9()\-.,\s]{1,15}$/;
+  const allowedPattern = /^[a-zA-Z0-9()\-.,\s]{1,25}$/;
   const errors = [];
 
   for (const [key, value] of Object.entries(data)) {
