@@ -253,8 +253,8 @@ function validateData(data) {
 
     const stringValue = String(value);
 
-    if (stringValue.length > 15) {
-      errors.push(`Field "${key}" exceeds 15 characters (has ${stringValue.length})`);
+    if (stringValue.length > 25) {
+      errors.push(`Field "${key}" exceeds 25 characters (has ${stringValue.length})`);
     }
 
     if (!allowedPattern.test(stringValue)) {
