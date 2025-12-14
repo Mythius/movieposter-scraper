@@ -193,6 +193,25 @@ function initializeHtmlFile() {
       border-bottom: 3px solid #4CAF50;
       padding-bottom: 10px;
     }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .delete-btn {
+      background-color: #f44336;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    .delete-btn:hover {
+      background-color: #d32f2f;
+    }
     .entry {
       background: white;
       padding: 15px;
@@ -214,9 +233,27 @@ function initializeHtmlFile() {
       word-wrap: break-word;
     }
   </style>
+  <script>
+    function deleteAllRecords() {
+      if (confirm('Are you sure you want to delete all records? This cannot be undone.')) {
+        fetch('/delete-all', { method: 'GET' })
+          .then(response => response.json())
+          .then(data => {
+            alert(data.message);
+            location.reload();
+          })
+          .catch(error => {
+            alert('Error deleting records: ' + error.message);
+          });
+      }
+    }
+  </script>
 </head>
 <body>
-  <h1>Submitted Data</h1>
+  <div class="header">
+    <h1>Submitted Data</h1>
+    <button class="delete-btn" onclick="deleteAllRecords()">Delete All Records</button>
+  </div>
   <p>All submissions appear below:</p>
 </body>
 </html>`;
@@ -347,6 +384,110 @@ app.get('/data', (req, res) => {
   } catch (error) {
     console.error('Error reading JSON data:', error.message);
     res.status(500).json({ error: 'An error occurred while reading data', details: error.message });
+  }
+});
+
+// Endpoint to delete all records
+app.get('/delete-all', (req, res) => {
+  try {
+    // Reset JSON file
+    fs.writeFileSync(dataJsonPath, JSON.stringify([], null, 2));
+
+    // Reset HTML file
+    const initialHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submitted Data</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    h1 {
+      color: #333;
+      border-bottom: 3px solid #4CAF50;
+      padding-bottom: 10px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .delete-btn {
+      background-color: #f44336;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    .delete-btn:hover {
+      background-color: #d32f2f;
+    }
+    .entry {
+      background: white;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .timestamp {
+      color: #666;
+      font-size: 0.9em;
+      margin-bottom: 10px;
+    }
+    .data {
+      background: #f9f9f9;
+      padding: 10px;
+      border-left: 4px solid #4CAF50;
+      margin-top: 10px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+  </style>
+  <script>
+    function deleteAllRecords() {
+      if (confirm('Are you sure you want to delete all records? This cannot be undone.')) {
+        fetch('/delete-all', { method: 'GET' })
+          .then(response => response.json())
+          .then(data => {
+            alert(data.message);
+            location.reload();
+          })
+          .catch(error => {
+            alert('Error deleting records: ' + error.message);
+          });
+      }
+    }
+  </script>
+</head>
+<body>
+  <div class="header">
+    <h1>Submitted Data</h1>
+    <button class="delete-btn" onclick="deleteAllRecords()">Delete All Records</button>
+  </div>
+  <p>All submissions appear below:</p>
+</body>
+</html>`;
+    fs.writeFileSync(dataHtmlPath, initialHtml);
+
+    console.log('All records deleted');
+
+    res.json({
+      success: true,
+      message: 'All records have been deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting records:', error.message);
+    res.status(500).json({ error: 'An error occurred while deleting records', details: error.message });
   }
 });
 
