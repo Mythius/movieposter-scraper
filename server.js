@@ -64,9 +64,8 @@ async function searchMovie(movieName) {
 
     const $ = cheerio.load(response.data);
 
-    // Find the first movie result
-    const firstResult = $('.card.v4.tight').first();
-    const posterPath = firstResult.find('img.poster').attr('src');
+    // Find the first movie result (TMDB's search page markup, as of 2026)
+    const posterPath = $('#movie_results img.poster').first().attr('src');
 
     if (posterPath) {
       // TMDB uses relative paths, convert to full URL
@@ -158,7 +157,9 @@ app.get('/poster', async (req, res) => {
     res.sendFile(filepath, (err) => {
       if (err) {
         console.error('Error sending file:', err);
-        res.status(500).json({ error: 'Error sending file' });
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Error sending file' });
+        }
       }
     });
 
